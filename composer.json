@@ -1,0 +1,19 @@
+{
+    "name": "fmido88/moodle-availability_wallet",
+    "description": "An availability condition for Moodle that restrict access until a payment made by wallet balance",
+    "type": "moodle-availability",
+    "license": "GPL-3.0-or-later",
+    "authors": [
+        {
+            "name": "Mohammad Farouk",
+            "email": "Pharouk@gmail.com"
+        }
+    ],
+    "require": {
+        "composer/installers": "~1.0"
+    },
+    "extra": {
+        "installer-name": "wallet"
+    }
+}
+
