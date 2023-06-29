@@ -44,9 +44,29 @@ class frontend extends \core_availability\frontend {
      * @param \section_info $section Section currently being edited (null if none)
      */
     protected function allow_add($course, \cm_info $cm = null, \section_info $section = null) {
-        global $add;
+        $allow = true;
 
-        return true;
+        if (!empty($cm)) {
+            $info = new \core_availability\info_module($cm);
+        } else if (!empty($section)) {
+            $info = new \core_availability\info_section($section);
+        }
+
+        // Check if there is previously wallet instance.
+        if (!empty($info)) {
+            try {
+                if ($tree = $info->get_availability_tree()) {
+                    $wallet = $tree->get_all_children('availability_wallet\condition');
+                    if (!empty($wallet)) {
+                        $allow = false;
+                    }
+                }
+            } catch (\coding_exception $c) {
+                $allow = true;
+            }
+        }
+
+        return $allow;
     }
 
     /**
