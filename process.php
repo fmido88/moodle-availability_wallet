@@ -24,8 +24,6 @@
 
 require_once(__DIR__.'/../../../config.php');
 
-require_login();
-
 $cost = required_param('cost', PARAM_NUMBER);
 $courseid = required_param('courseid', PARAM_INT);
 $contextid = required_param('contextid', PARAM_INT);
@@ -35,19 +33,25 @@ $contextlevel = required_param('contextlevel', PARAM_INT);
 
 $context = get_context_info_array($contextid);
 
+require_login($courseid);
+
 $url = new moodle_url('/course/view.php', ['id' => $courseid]);
 if (confirm_sesskey()) {
     global $USER, $DB;
 
     $data = [
-        'userid' => $USER->id,
-        'courseid' => $courseid,
-        'cmid' => (!empty($cmid)) ? $cmid : null,
-        'sectionid' => (!empty($sectionid)) ? $sectionid : null,
-        'cost' => $cost,
+        'userid'      => $USER->id,
+        'courseid'    => $courseid,
+        'cmid'        => (!empty($cmid)) ? $cmid : null,
+        'sectionid'   => (!empty($sectionid)) ? $sectionid : null,
+        'cost'        => $cost,
         'timecreated' => time(),
     ];
+
     $DB->insert_record('availability_wallet', $data);
+
+    $wallet = enrol_get_plugin('wallet');
+    $coupon = $wallet->check_discount_coupon();
 
     $coursename = get_course($courseid)->fullname;
     if (!empty($cmid)) {
@@ -66,6 +70,15 @@ if (confirm_sesskey()) {
         $name .= ': ';
         $name .= get_string('section');
         $name .= (!empty($section->name)) ? "($section->name)" : "($section->section)";
+
+    } else {
+
+        $msg = get_string('noid', 'availability_wallet');
+        redirect($url, $msg, null, 'error');
+    }
+
+    if (!empty($coupon)) {
+        enrol_wallet\transactions::mark_coupon_used($coupon, $USER->id, 0);
     }
 
     enrol_wallet\transactions::debit($USER->id, $cost, $name);

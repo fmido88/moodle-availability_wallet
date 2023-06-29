@@ -15,7 +15,7 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Wallet Balance Block lib.
+ * Availability Wallet lib.
  *
  * @package    block_wallet
  * @copyright  2023 Mo Farouk <phun.for.physics@gmail.com>

@@ -25,13 +25,13 @@
 $string['ajaxerror'] = 'Error contacting server';
 $string['description'] = 'Restriction by payment by wallet balance.';
 $string['eithernotdescription'] = 'A cost of {$a->cost} already payed. Your current balance is {$a->balance}<br>';
-$string['eitherdescription'] = 'You need to pay {$a->cost} for access. Your current balance is {$a->balance}<br>
-{$a->paybutton}';
-$string['pluginname'] = 'Restriction by wallet payment.';
-$string['title'] = 'Wallet payment';
-$string['paybuttonlabel'] = 'Pay by wallet';
+$string['eitherdescription'] = 'You need to pay {$a->cost} for access. Your current balance is {$a->balance} {$a->paybutton} {$a->couponform}';
 $string['fieldlabel'] = 'cost';
 $string['insufficientbalance'] = 'Insufficient balance to access, {$a->cost} required while your balance is {$a->balance}';
-$string['success'] = 'Payment successful';
-$string['module'] = 'Module';
 $string['invalidcost'] = 'ERROR: Invalid cost, please enter a valid cost.';
+$string['module'] = 'Module';
+$string['noid'] = 'No course module or section provided';
+$string['paybuttonlabel'] = 'Pay by wallet';
+$string['pluginname'] = 'Restriction by wallet payment.';
+$string['title'] = 'Wallet payment';
+$string['success'] = 'Payment successful';

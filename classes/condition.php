@@ -121,6 +121,7 @@ class condition extends \core_availability\condition {
         global $DB;
         return $DB->record_exists('availability_wallet', ['userid' => $userid, 'sectionid' => $sectionid]);
     }
+
     /**
      * Obtains a string describing this restriction (whether or not
      * it actually applies).
@@ -135,7 +136,7 @@ class condition extends \core_availability\condition {
         global $USER, $DB, $OUTPUT;
 
         $cost = $this->cost;
-        if (empty ($cost) || !is_numeric($cost) || $cost <= 0) {
+        if (empty($cost) || !is_numeric($cost) || $cost <= 0) {
             return get_string('invalidcost', 'availability_wallet');
         }
         $balance = transactions::get_user_balance($USER->id);
@@ -155,16 +156,41 @@ class condition extends \core_availability\condition {
             // Assuming section.
             $params['sectionid'] = $info->get_section()->id;
         }
+
+        $wallet = enrol_get_plugin('wallet');
+        $coupon = $wallet->check_discount_coupon();
+        $costafter = $wallet->get_cost_after_discount($USER->id, (object)$params, $coupon);
+
+        $curr = get_config('enrol_wallet', 'currency');
+        $curr = !empty($curr) ? $curr : '';
         $a = new \stdClass;
-        $a->cost = $cost;
+        if ($cost == $costafter) {
+            $a->cost = $cost . ' ' . $curr;
+        } else {
+            $a->cost = "<del>$cost $curr</del> $costafter $curr";
+            $params['cost'] = $costafter;
+        }
+
         $a->balance = $balance;
 
-        if ($cost > $balance) {
+        // No enough balance.
+        if ($costafter > $balance) {
             return get_string('insufficientbalance', 'availability_wallet', $a);
         }
+
+        // Pay button.
         $label = get_string('paybuttonlabel', 'availability_wallet');
         $url = new \moodle_url('/availability/condition/wallet/process.php', $params);
         $a->paybutton = $OUTPUT->single_button($url, $label, 'post', ['primary' => true]);
+
+        // Coupon form.
+        $actionurl = new \moodle_url('/enrol/wallet/extra/action.php');
+        $data = (object)['instance' => (object)$params];
+        $couponform = new \enrol_wallet\form\applycoupon_form($actionurl, $data);
+        ob_start();
+        $couponform->display();
+        $a->couponform = ob_get_clean();
+
         if ($not) {
             return get_string('eithernotdescription', 'availability_wallet', $a);
         } else {
