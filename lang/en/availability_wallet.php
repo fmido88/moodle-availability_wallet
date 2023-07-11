@@ -26,6 +26,7 @@ $string['ajaxerror'] = 'Error contacting server';
 $string['description'] = 'Restriction by payment by wallet balance.';
 $string['eithernotdescription'] = 'A cost of {$a->cost} already payed. Your current balance is {$a->balance}<br>';
 $string['eitherdescription'] = 'You need to pay {$a->cost} for access. Your current balance is {$a->balance} {$a->paybutton} {$a->couponform}';
+$string['debitdesc'] = 'Due to access to: {$a}';
 $string['fieldlabel'] = 'cost';
 $string['insufficientbalance'] = 'Insufficient balance to access, {$a->cost} required while your balance is {$a->balance}';
 $string['invalidcost'] = 'ERROR: Invalid cost, please enter a valid cost.';

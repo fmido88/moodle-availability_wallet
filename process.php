@@ -81,7 +81,8 @@ if (confirm_sesskey()) {
         enrol_wallet\transactions::mark_coupon_used($coupon, $USER->id, 0);
     }
 
-    enrol_wallet\transactions::debit($USER->id, $cost, $name);
+    $desc = get_string('debitdesc', 'availability_wallet', $name);
+    enrol_wallet\transactions::debit($USER->id, $cost, '', '', $desc);
 
     $msg = get_string('success', 'availability_wallet');
     redirect($url, $msg);
