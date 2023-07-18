@@ -94,9 +94,11 @@ class condition extends \core_availability\condition {
             // Assuming section.
             $allow = $this->is_section_available($userid, $info->get_section()->id);
         }
+
         if ($not) {
             $allow = !$allow;
         }
+
         return $allow;
     }
 
@@ -139,13 +141,14 @@ class condition extends \core_availability\condition {
         if (empty($cost) || !is_numeric($cost) || $cost <= 0) {
             return get_string('invalidcost', 'availability_wallet');
         }
+
         $balance = transactions::get_user_balance($USER->id);
         $context = $info->get_context();
 
         $params = [
-            'cost' => $cost,
-            'courseid' => $info->get_course()->id,
-            'contextid' => $context->id,
+            'cost'         => $cost,
+            'courseid'     => $info->get_course()->id,
+            'contextid'    => $context->id,
             'contextlevel' => $context->contextlevel,
         ];
 
@@ -171,7 +174,7 @@ class condition extends \core_availability\condition {
             $params['cost'] = $costafter;
         }
 
-        $a->balance = $balance;
+        $a->balance = "$balance $curr";
 
         // No enough balance.
         if ($costafter > $balance) {
@@ -187,6 +190,7 @@ class condition extends \core_availability\condition {
         $actionurl = new \moodle_url('/enrol/wallet/extra/action.php');
         $data = (object)['instance' => (object)$params];
         $couponform = new \enrol_wallet\form\applycoupon_form($actionurl, $data);
+
         ob_start();
         $couponform->display();
         $a->couponform = ob_get_clean();

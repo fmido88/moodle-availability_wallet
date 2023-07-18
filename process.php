@@ -17,18 +17,18 @@
 /**
  * Process payment for availability wallet
  *
- * @package    availability_wallet.
+ * @package    availability_wallet
  * @copyright  2023 Mohammad Farouk
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
 require_once(__DIR__.'/../../../config.php');
 
-$cost = required_param('cost', PARAM_NUMBER);
-$courseid = required_param('courseid', PARAM_INT);
-$contextid = required_param('contextid', PARAM_INT);
-$cmid = optional_param('cmid', 0, PARAM_INT);
-$sectionid = optional_param('sectionid', 0, PARAM_INT);
+$cost         = required_param('cost', PARAM_NUMBER);
+$courseid     = required_param('courseid', PARAM_INT);
+$contextid    = required_param('contextid', PARAM_INT);
+$cmid         = optional_param('cmid', 0, PARAM_INT);
+$sectionid    = optional_param('sectionid', 0, PARAM_INT);
 $contextlevel = required_param('contextlevel', PARAM_INT);
 
 $context = get_context_info_array($contextid);
@@ -36,54 +36,58 @@ $context = get_context_info_array($contextid);
 require_login($courseid);
 
 $url = new moodle_url('/course/view.php', ['id' => $courseid]);
-if (confirm_sesskey()) {
-    global $USER, $DB;
 
-    $data = [
-        'userid'      => $USER->id,
-        'courseid'    => $courseid,
-        'cmid'        => (!empty($cmid)) ? $cmid : null,
-        'sectionid'   => (!empty($sectionid)) ? $sectionid : null,
-        'cost'        => $cost,
-        'timecreated' => time(),
-    ];
+// Sesskey must be confirmed before action.
+if (!confirm_sesskey()) {
+    throw new moodle_exception('invalidsesskey');
+};
 
-    $DB->insert_record('availability_wallet', $data);
+global $USER, $DB;
 
-    $wallet = enrol_get_plugin('wallet');
-    $coupon = $wallet->check_discount_coupon();
+$data = [
+    'userid'      => $USER->id,
+    'courseid'    => $courseid,
+    'cmid'        => (!empty($cmid)) ? $cmid : null,
+    'sectionid'   => (!empty($sectionid)) ? $sectionid : null,
+    'cost'        => $cost,
+    'timecreated' => time(),
+];
 
-    $coursename = get_course($courseid)->fullname;
-    if (!empty($cmid)) {
-        list($course, $module) = get_course_and_cm_from_cmid($cmid);
+$DB->insert_record('availability_wallet', $data);
 
-        $name = $course->fullname;
-        $name .= ': ';
-        $name .= get_string('module', 'availability_wallet');
-        $name .= '(' . $module->name . ')';
+$wallet = enrol_get_plugin('wallet');
+$coupon = $wallet->check_discount_coupon();
 
-    } else if (!empty($sectionid)) {
-        $section = $DB->get_record('course_sections', ['id' => $sectionid]);
-        $course = get_course($courseid);
+$coursename = get_course($courseid)->fullname;
+if (!empty($cmid)) {
+    list($course, $module) = get_course_and_cm_from_cmid($cmid);
 
-        $name = $course->fullname;
-        $name .= ': ';
-        $name .= get_string('section');
-        $name .= (!empty($section->name)) ? "($section->name)" : "($section->section)";
+    $name = $course->fullname;
+    $name .= ': ';
+    $name .= get_string('module', 'availability_wallet');
+    $name .= '(' . $module->name . ')';
 
-    } else {
+} else if (!empty($sectionid)) {
+    $section = $DB->get_record('course_sections', ['id' => $sectionid]);
+    $course = get_course($courseid);
 
-        $msg = get_string('noid', 'availability_wallet');
-        redirect($url, $msg, null, 'error');
-    }
+    $name = $course->fullname;
+    $name .= ': ';
+    $name .= get_string('section');
+    $name .= (!empty($section->name)) ? "($section->name)" : "($section->section)";
 
-    if (!empty($coupon)) {
-        enrol_wallet\transactions::mark_coupon_used($coupon, $USER->id, 0);
-    }
+} else {
 
-    $desc = get_string('debitdesc', 'availability_wallet', $name);
-    enrol_wallet\transactions::debit($USER->id, $cost, '', '', $desc);
-
-    $msg = get_string('success', 'availability_wallet');
-    redirect($url, $msg);
+    $msg = get_string('noid', 'availability_wallet');
+    redirect($url, $msg, null, 'error');
 }
+
+if (!empty($coupon)) {
+    enrol_wallet\transactions::mark_coupon_used($coupon, $USER->id, 0);
+}
+
+$desc = get_string('debitdesc', 'availability_wallet', $name);
+enrol_wallet\transactions::debit($USER->id, $cost, '', '', $desc);
+
+$msg = get_string('success', 'availability_wallet');
+redirect($url, $msg);

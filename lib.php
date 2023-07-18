@@ -17,7 +17,7 @@
 /**
  * Availability Wallet lib.
  *
- * @package    block_wallet
+ * @package    availability_wallet
  * @copyright  2023 Mo Farouk <phun.for.physics@gmail.com>
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
