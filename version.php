@@ -24,11 +24,11 @@
 
 defined('MOODLE_INTERNAL') || die();
 
-$plugin->version = 2023062923;
+$plugin->version = 2023071808;
 $plugin->requires = 2014111000;
 $plugin->component = 'availability_wallet';
-$plugin->release = 1.2;
+$plugin->release = 1.3;
 $plugin->maturity = MATURITY_STABLE;
 $plugin->dependencies = [
-    'enrol_wallet' => 2023061002
+    'enrol_wallet' => 2023071808
 ];
