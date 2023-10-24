@@ -33,7 +33,7 @@ use enrol_wallet\transactions;
  * @license http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class condition extends \core_availability\condition {
-
+    /** @var float the cost required.*/
     protected $cost;
 
     /**
@@ -135,8 +135,8 @@ class condition extends \core_availability\condition {
      *   this item
      */
     public function get_description($full, $not, \core_availability\info $info) {
-        global $USER, $DB, $OUTPUT;
-
+        global $USER, $DB, $OUTPUT, $CFG;
+        require_once($CFG->dirroot.'/enrol/wallet/locallib.php');
         $cost = $this->cost;
         if (empty($cost) || !is_numeric($cost) || $cost <= 0) {
             return get_string('invalidcost', 'availability_wallet');
@@ -189,8 +189,14 @@ class condition extends \core_availability\condition {
         // Coupon form.
         $actionurl = new \moodle_url('/enrol/wallet/extra/action.php');
         $data = (object)['instance' => (object)$params];
-        $couponform = new \enrol_wallet\form\applycoupon_form($actionurl, $data);
-
+        $couponform = new \enrol_wallet\form\applycoupon_form(null, $data);
+        if ($couponform->is_cancelled()) {
+            $_SESSION['coupon'] = '';
+            unset($coupon);
+        }
+        if ($submitteddata = $couponform->get_data()) {
+            enrol_wallet_process_coupon_data($submitteddata);
+        }
         ob_start();
         $couponform->display();
         $a->couponform = ob_get_clean();

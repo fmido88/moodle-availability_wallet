@@ -87,7 +87,7 @@ if (!empty($coupon)) {
 }
 
 $desc = get_string('debitdesc', 'availability_wallet', $name);
-enrol_wallet\transactions::debit($USER->id, $cost, '', '', $desc);
+enrol_wallet\transactions::debit($USER->id, $cost, '', '', $desc, $courseid);
 
 $msg = get_string('success', 'availability_wallet');
 redirect($url, $msg);
