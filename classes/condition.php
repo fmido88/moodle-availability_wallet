@@ -146,6 +146,7 @@ class condition extends \core_availability\condition {
         $context = $info->get_context();
 
         $params = [
+            'id'           => 0,
             'cost'         => $cost,
             'courseid'     => $info->get_course()->id,
             'contextid'    => $context->id,

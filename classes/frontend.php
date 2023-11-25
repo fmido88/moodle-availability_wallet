@@ -59,7 +59,11 @@ class frontend extends \core_availability\frontend {
                     $wallet = $tree->get_all_children('availability_wallet\condition');
                     if (!empty($wallet)) {
                         $allow = false;
+                    } else {
+                        $allow = true;
                     }
+                } else {
+                    $allow = true;
                 }
             } catch (\coding_exception $c) {
                 $allow = true;
