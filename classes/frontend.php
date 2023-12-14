@@ -34,46 +34,6 @@ namespace availability_wallet;
 class frontend extends \core_availability\frontend {
 
     /**
-     * This plugin was tested with several core plugins and relies on events which has crud = "r".
-     *
-     * There are issues with the Wiki, Label and Book modules.
-     * For details see: https://github.com/danielneis/moodle-availability_wallet/issues/2
-     *
-     * @param \stdClass $course Course object
-     * @param \cm_info $cm Course-module currently being edited (null if none)
-     * @param \section_info $section Section currently being edited (null if none)
-     */
-    protected function allow_add($course, \cm_info $cm = null, \section_info $section = null) {
-        $allow = true;
-
-        if (!empty($cm)) {
-            $info = new \core_availability\info_module($cm);
-        } else if (!empty($section)) {
-            $info = new \core_availability\info_section($section);
-        }
-
-        // Check if there is previously wallet instance.
-        if (!empty($info)) {
-            try {
-                if ($tree = $info->get_availability_tree()) {
-                    $wallet = $tree->get_all_children('availability_wallet\condition');
-                    if (!empty($wallet)) {
-                        $allow = false;
-                    } else {
-                        $allow = true;
-                    }
-                } else {
-                    $allow = true;
-                }
-            } catch (\coding_exception $c) {
-                $allow = true;
-            }
-        }
-
-        return $allow;
-    }
-
-    /**
      * Gets a list of string identifiers (in the plugin's language file) that
      * are required in JavaScript for this plugin. The default returns nothing.
      *

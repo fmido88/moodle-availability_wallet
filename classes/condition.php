@@ -89,10 +89,10 @@ class condition extends \core_availability\condition {
 
         if ($context->contextlevel === CONTEXT_MODULE) {
             // Course module.
-            $allow = $this->is_cm_available($userid, $info->get_course_module()->id);
+            $allow = $this->is_cm_available($userid, $info);
         } else {
             // Assuming section.
-            $allow = $this->is_section_available($userid, $info->get_section()->id);
+            $allow = $this->is_section_available($userid, $info);
         }
 
         if ($not) {
@@ -105,25 +105,74 @@ class condition extends \core_availability\condition {
     /**
      * Check the availability of course module.
      * @param int $userid
-     * @param int $cmid
+     * @param \core_availability\info_module $info
      * @return bool
      */
-    private function is_cm_available($userid, $cmid) {
+    private function is_cm_available($userid, $info) {
         global $DB;
-        return $DB->record_exists('availability_wallet', ['userid' => $userid, 'cmid' => $cmid]);
+        $cmid = $info->get_course_module()->id;
+
+        $records = $DB->get_records('availability_wallet', ['userid' => $userid, 'cmid' => $cmid]);
+        if (empty($records)) {
+            return false;
+        }
+        return $this->is_payment_sufficient($records);
     }
 
     /**
      * Check the availability of a section.
      * @param int $userid
-     * @param int $sectionid
+     * @param \core_availability\info_section $info
      * @return bool
      */
-    private function is_section_available($userid, $sectionid) {
+    private function is_section_available($userid, $info) {
         global $DB;
-        return $DB->record_exists('availability_wallet', ['userid' => $userid, 'sectionid' => $sectionid]);
+        $sectionid = $info->get_section()->id;
+        $records = $DB->get_records('availability_wallet', ['userid' => $userid, 'sectionid' => $sectionid]);
+        if (empty($records)) {
+            return false;
+        }
+        return $this->is_payment_sufficient($records);
     }
 
+
+    /**
+     * Check is payments were sufficient for this thing.
+     * @param array[object] $records
+     */
+    private function is_payment_sufficient($records) {
+        $total = 0;
+        foreach ($records as $record) {
+            $total += $record->cost;
+        }
+        return $total >= $this->cost;
+    }
+
+    /**
+     * Creates a fake instance to check the discount.
+     * @param int $courseid
+     * @param int $someid cmid or sectionid
+     * @param \context $context
+     * @return array
+     */
+    private function format_fake_instance($courseid, $someid, $context) {
+        $params = [
+            'id'           => 0,
+            'cost'         => $this->cost,
+            'courseid'     => $courseid,
+            'contextid'    => $context->id,
+            'contextlevel' => $context->contextlevel,
+        ];
+
+        if ($context->contextlevel === CONTEXT_MODULE) {
+            // Course module.
+            $params['cmid'] = $someid;
+        } else {
+            // Assuming section.
+            $params['sectionid'] = $someid;
+        }
+        return $params;
+    }
     /**
      * Obtains a string describing this restriction (whether or not
      * it actually applies).
@@ -136,6 +185,7 @@ class condition extends \core_availability\condition {
      */
     public function get_description($full, $not, \core_availability\info $info) {
         global $USER, $DB, $OUTPUT, $CFG;
+        $context = $info->get_context();
         require_once($CFG->dirroot.'/enrol/wallet/locallib.php');
         $cost = $this->cost;
         if (empty($cost) || !is_numeric($cost) || $cost <= 0) {
@@ -143,23 +193,8 @@ class condition extends \core_availability\condition {
         }
 
         $balance = transactions::get_user_balance($USER->id);
-        $context = $info->get_context();
-
-        $params = [
-            'id'           => 0,
-            'cost'         => $cost,
-            'courseid'     => $info->get_course()->id,
-            'contextid'    => $context->id,
-            'contextlevel' => $context->contextlevel,
-        ];
-
-        if ($context->contextlevel === CONTEXT_MODULE) {
-            // Course module.
-            $params['cmid'] = $info->get_course_module()->id;
-        } else {
-            // Assuming section.
-            $params['sectionid'] = $info->get_section()->id;
-        }
+        $someid = ($context->contextlevel === CONTEXT_MODULE) ? $info->get_course_module()->id : $info->get_section()->id;
+        $params = $this->format_fake_instance($info->get_course()->id, $someid, $context);
 
         $wallet = enrol_get_plugin('wallet');
         $coupon = $wallet->check_discount_coupon();
@@ -182,6 +217,9 @@ class condition extends \core_availability\condition {
             return get_string('insufficientbalance', 'availability_wallet', $a);
         }
 
+        if ($this->is_available($not, $info, false, $USER->id)) {
+            return get_string('already_paid', 'availability_wallet', $a);
+        }
         // Pay button.
         $label = get_string('paybuttonlabel', 'availability_wallet');
         $url = new \moodle_url('/availability/condition/wallet/process.php', $params);

@@ -23,7 +23,9 @@
  */
 
 require_once(__DIR__.'/../../../config.php');
-
+// Notice and warnings cases a double payments in case of refreshing the page.
+set_debugging(DEBUG_NONE);
+require_once(__DIR__.'/lib.php');
 $cost         = required_param('cost', PARAM_NUMBER);
 $courseid     = required_param('courseid', PARAM_INT);
 $contextid    = required_param('contextid', PARAM_INT);
@@ -43,6 +45,19 @@ if (!confirm_sesskey()) {
 };
 
 global $USER, $DB;
+
+if (!empty($cmid)) {
+    $record = $DB->get_record('course_modules', ['id' => $cmid]);
+} else {
+    $record = $DB->get_record('course_sections', ['id' => $sectionid]);
+}
+
+$conditions = json_decode($record->availability);
+
+if (!availability_wallet_check_cost($conditions, $cost)) {
+    $msg = get_string('paymentnotenought', 'availability_wallet');
+    redirect($url, $msg, null, 'error');
+}
 
 $data = [
     'userid'      => $USER->id,

@@ -24,7 +24,7 @@
 
 $string['ajaxerror'] = 'Error contacting server';
 $string['description'] = 'Restriction by payment by wallet balance.';
-$string['eithernotdescription'] = 'A cost of {$a->cost} already payed. Your current balance is {$a->balance}<br>';
+$string['eithernotdescription'] = 'A cost of {$a->cost} already paied. Your current balance is {$a->balance}<br>';
 $string['eitherdescription'] = 'You need to pay {$a->cost} for access. Your current balance is {$a->balance} {$a->paybutton} {$a->couponform}';
 $string['debitdesc'] = 'Due to access to: {$a}';
 $string['fieldlabel'] = 'cost';
@@ -36,3 +36,11 @@ $string['paybuttonlabel'] = 'Pay by wallet';
 $string['pluginname'] = 'Restriction by wallet payment.';
 $string['title'] = 'Wallet payment';
 $string['success'] = 'Payment successful';
+$string['already_paid'] = 'Already paid {$a->cost}';
+$string['paymentnotenought'] = 'Payment isn\'t enough.';
+$string['privacy:metadata:availability_wallet:userid'] = 'The id of the user.';
+$string['privacy:metadata:availability_wallet:cost'] = 'The cost of the item paid for.';
+$string['privacy:metadata:availability_wallet:courseid'] = 'The id of the course at which the item existed.';
+$string['privacy:metadata:availability_wallet:cmid'] = 'The id of the course module if that what the user pay for.';
+$string['privacy:metadata:availability_wallet:sectionid'] = 'The id of the course section if that what the use pay for.';
+$string['privacy:metadata:availability_wallet'] = 'Store non-critical information about course modules and section that the user pay for';
