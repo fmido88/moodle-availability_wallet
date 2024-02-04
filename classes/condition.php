@@ -24,7 +24,16 @@
 
 namespace availability_wallet;
 
-use enrol_wallet\transactions;
+use enrol_wallet\util\balance;
+use enrol_wallet\util\cm;
+use enrol_wallet\util\section;
+use enrol_wallet\coupons;
+use core_availability\info;
+use core_availability\info_module;
+use core_availability\info_section;
+use core_availability\condition as core_condition;
+use enrol_wallet\form\applycoupon_form;
+use moodle_url;
 /**
  * Wallet condition.
  *
@@ -32,7 +41,7 @@ use enrol_wallet\transactions;
  * @copyright 2023 Mohammad Farouk
  * @license http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-class condition extends \core_availability\condition {
+class condition extends core_condition {
     /** @var float the cost required.*/
     protected $cost;
 
@@ -71,14 +80,14 @@ class condition extends \core_availability\condition {
      * according to this availability condition.
      *
      * @param bool $not Set true if we are inverting the condition
-     * @param \core_availability\info $info Item we're checking
+     * @param info $info Item we're checking
      * @param bool $grabthelot Performance hint: if true, caches information
      *   required for all course-modules, to make the front page and similar
      *   pages work more quickly (works only for current user)
      * @param int $userid User ID to check availability for
      * @return bool True if available
      */
-    public function is_available($not, \core_availability\info $info, $grabthelot, $userid) {
+    public function is_available($not, info $info, $grabthelot, $userid) {
         global $DB;
         $context = $info->get_context();
 
@@ -105,7 +114,7 @@ class condition extends \core_availability\condition {
     /**
      * Check the availability of course module.
      * @param int $userid
-     * @param \core_availability\info_module $info
+     * @param info_module $info
      * @return bool
      */
     private function is_cm_available($userid, $info) {
@@ -122,7 +131,7 @@ class condition extends \core_availability\condition {
     /**
      * Check the availability of a section.
      * @param int $userid
-     * @param \core_availability\info_section $info
+     * @param info_section $info
      * @return bool
      */
     private function is_section_available($userid, $info) {
@@ -134,7 +143,6 @@ class condition extends \core_availability\condition {
         }
         return $this->is_payment_sufficient($records);
     }
-
 
     /**
      * Check is payments were sufficient for this thing.
@@ -155,7 +163,7 @@ class condition extends \core_availability\condition {
      * @param \context $context
      * @return array
      */
-    private function format_fake_instance($courseid, $someid, $context) {
+    private function create_parameters($courseid, $someid, $context) {
         $params = [
             'id'           => 0,
             'cost'         => $this->cost,
@@ -179,11 +187,11 @@ class condition extends \core_availability\condition {
      *
      * @param bool $full Set true if this is the 'full information' view
      * @param bool $not Set true if we are inverting the condition
-     * @param \core_availability\info $info Item we're checking
+     * @param info $info Item we're checking
      * @return string Information string (for admin) about all restrictions on
      *   this item
      */
-    public function get_description($full, $not, \core_availability\info $info) {
+    public function get_description($full, $not, info $info) {
         global $USER, $DB, $OUTPUT, $CFG;
         $context = $info->get_context();
         require_once($CFG->dirroot.'/enrol/wallet/locallib.php');
@@ -192,13 +200,18 @@ class condition extends \core_availability\condition {
             return get_string('invalidcost', 'availability_wallet');
         }
 
-        $balance = transactions::get_user_balance($USER->id);
-        $someid = ($context->contextlevel === CONTEXT_MODULE) ? $info->get_course_module()->id : $info->get_section()->id;
-        $params = $this->format_fake_instance($info->get_course()->id, $someid, $context);
+        if ($context->contextlevel === CONTEXT_MODULE) {
+            $someid = $info->get_course_module()->id;
+            $helper = new cm($someid);
+        } else {
+            $someid = $info->get_section()->id;
+            $helper = new section($someid);
+        }
+        $bal = new balance(0, $helper->get_category_id());
+        $balance = $bal->get_valid_balance();
 
-        $wallet = enrol_get_plugin('wallet');
-        $coupon = $wallet->check_discount_coupon();
-        $costafter = $wallet->get_cost_after_discount($USER->id, (object)$params, $coupon);
+        $params = $this->create_parameters($info->get_course()->id, $someid, $context);
+        $costafter = $helper->get_cost_after_discount($cost);
 
         $curr = get_config('enrol_wallet', 'currency');
         $curr = !empty($curr) ? $curr : '';
@@ -207,7 +220,6 @@ class condition extends \core_availability\condition {
             $a->cost = $cost . ' ' . $curr;
         } else {
             $a->cost = "<del>$cost $curr</del> $costafter $curr";
-            $params['cost'] = $costafter;
         }
 
         $a->balance = "$balance $curr";
@@ -222,23 +234,23 @@ class condition extends \core_availability\condition {
         }
         // Pay button.
         $label = get_string('paybuttonlabel', 'availability_wallet');
-        $url = new \moodle_url('/availability/condition/wallet/process.php', $params);
+        $url = new moodle_url('/availability/condition/wallet/process.php', $params);
         $a->paybutton = $OUTPUT->single_button($url, $label, 'post', ['primary' => true]);
 
         // Coupon form.
-        $actionurl = new \moodle_url('/enrol/wallet/extra/action.php');
+        $actionurl = new moodle_url('/enrol/wallet/extra/action.php');
         $data = (object)['instance' => (object)$params];
-        $couponform = new \enrol_wallet\form\applycoupon_form(null, $data);
+        $couponaction = new moodle_url('/enrol/wallet/extra/coupon_action.php');
+        $couponform = new applycoupon_form($couponaction, $data);
         if ($couponform->is_cancelled()) {
-            $_SESSION['coupon'] = '';
-            unset($coupon);
+            coupons::unset_session_coupon();
         }
+
         if ($submitteddata = $couponform->get_data()) {
             enrol_wallet_process_coupon_data($submitteddata);
         }
-        ob_start();
-        $couponform->display();
-        $a->couponform = ob_get_clean();
+
+        $a->couponform = $couponform->render();
 
         if ($not) {
             return get_string('eithernotdescription', 'availability_wallet', $a);

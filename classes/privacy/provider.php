@@ -15,7 +15,7 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Privacy Subsystem implementation for availability_wallet.
+ * Privacy Subsystem implementation for enrol_wallet.
  *
  * @package    availability_wallet
  * @copyright  2023 Mo Farouk <phun.for.physics@gmail.com>
@@ -24,17 +24,20 @@
 
 namespace availability_wallet\privacy;
 
-use \core_privacy\local\metadata\provider as core_provider;
-use \core_privacy\local\request\data_provider;
+use core_privacy\local\request\approved_contextlist;
+use core_privacy\local\request\approved_userlist;
+use core_privacy\local\request\userlist;
 use core_privacy\local\metadata\collection;
 
 /**
- * Privacy Subsystem for availability_wallet implementing null_provider.
+ * Privacy Subsystem for enrol_wallet implementing null_provider.
  *
  * @copyright  2023 Mo Farouk <phun.for.physics@gmail.com>
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-class provider implements core_provider, data_provider {
+class provider implements
+    \core_privacy\local\metadata\provider,
+    \core_privacy\local\request\data_provider {
 
     /**
      * Returns meta data about this system.

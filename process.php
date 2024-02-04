@@ -26,11 +26,16 @@ require_once(__DIR__.'/../../../config.php');
 // Notice and warnings cases a double payments in case of refreshing the page.
 set_debugging(DEBUG_NONE);
 require_once(__DIR__.'/lib.php');
+global $DB;
+use enrol_wallet\util\cm;
+use enrol_wallet\util\section;
+use enrol_wallet\util\balance_op;
+
 $cost         = required_param('cost', PARAM_NUMBER);
 $courseid     = required_param('courseid', PARAM_INT);
 $contextid    = required_param('contextid', PARAM_INT);
-$cmid         = optional_param('cmid', 0, PARAM_INT);
-$sectionid    = optional_param('sectionid', 0, PARAM_INT);
+$cmid         = optional_param('cmid', null, PARAM_INT);
+$sectionid    = optional_param('sectionid', null, PARAM_INT);
 $contextlevel = required_param('contextlevel', PARAM_INT);
 
 $context = get_context_info_array($contextid);
@@ -44,17 +49,20 @@ if (!confirm_sesskey()) {
     throw new moodle_exception('invalidsesskey');
 };
 
-global $USER, $DB;
-
 if (!empty($cmid)) {
-    $record = $DB->get_record('course_modules', ['id' => $cmid]);
+    $helper = new cm($cmid);
+} else if (!empty($sectionid)) {
+    $helper = new section($sectionid);
 } else {
-    $record = $DB->get_record('course_sections', ['id' => $sectionid]);
+    $msg = get_string('noid', 'availability_wallet');
+    redirect($url, $msg, null, 'error');
 }
 
-$conditions = json_decode($record->availability);
+// This function will validate and check the passed $cost if it is really one of the costs...
+// ... in the conditions of the cm or section.
+$costafter = $helper->get_cost_after_discount($cost);
 
-if (!availability_wallet_check_cost($conditions, $cost)) {
+if (is_null($costafter)) {
     $msg = get_string('paymentnotenought', 'availability_wallet');
     redirect($url, $msg, null, 'error');
 }
@@ -64,45 +72,38 @@ $data = [
     'courseid'    => $courseid,
     'cmid'        => (!empty($cmid)) ? $cmid : null,
     'sectionid'   => (!empty($sectionid)) ? $sectionid : null,
-    'cost'        => $cost,
+    'cost'        => $cost, // The cost before discount.
     'timecreated' => time(),
 ];
-
 $DB->insert_record('availability_wallet', $data);
 
-$wallet = enrol_get_plugin('wallet');
-$coupon = $wallet->check_discount_coupon();
-
-$coursename = get_course($courseid)->fullname;
+$coursename = $helper->get_course()->fullname;
 if (!empty($cmid)) {
-    list($course, $module) = get_course_and_cm_from_cmid($cmid);
-
-    $name = $course->fullname;
+    $module = $helper->cm;
+    $name = $coursename;
     $name .= ': ';
     $name .= get_string('module', 'availability_wallet');
     $name .= '(' . $module->name . ')';
 
+    $op = balance_op::create_from_cm($cm);
+    $by = balance_op::D_CM_ACCESS;
 } else if (!empty($sectionid)) {
-    $section = $DB->get_record('course_sections', ['id' => $sectionid]);
-    $course = get_course($courseid);
-
-    $name = $course->fullname;
+    $section = $helper->section;
+    $name = $coursename;
     $name .= ': ';
     $name .= get_string('section');
     $name .= (!empty($section->name)) ? "($section->name)" : "($section->section)";
 
-} else {
-
-    $msg = get_string('noid', 'availability_wallet');
-    redirect($url, $msg, null, 'error');
-}
-
-if (!empty($coupon)) {
-    enrol_wallet\transactions::mark_coupon_used($coupon, $USER->id, 0);
+    $op = balance_op::create_from_section($section);
+    $by = balance_op::D_SECTION_ACCESS;
 }
 
 $desc = get_string('debitdesc', 'availability_wallet', $name);
-enrol_wallet\transactions::debit($USER->id, $cost, '', '', $desc, $courseid);
+$op->debit($costafter, $by, $cmid ?? $sectionid, $desc);
+
+if (!empty($helper->couponutil->coupon) && $costafter < $cost) {
+    $helper->couponutil->mark_coupon_used();
+}
 
 $msg = get_string('success', 'availability_wallet');
 redirect($url, $msg);

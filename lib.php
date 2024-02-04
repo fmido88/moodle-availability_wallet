@@ -22,24 +22,3 @@
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
- /**
-  * Check if the cost passed to the process page is the same as the cost
-  * defined in at least one of the conditions.
-  * @param stdClass $conditions the availability tree.
-  * @param float $cost the cost passed to the process page.
-  */
-function availability_wallet_check_cost($conditions, $cost) {
-
-    foreach ($conditions->c as $child) {
-        if (!empty($child->c) && !empty($child->op)) {
-            if (availability_wallet_check_cost($child, $cost)) {
-                return true;
-            }
-        } else if ($child->type === 'wallet') {
-            if ($cost == $child->cost) {
-                return true;
-            }
-        }
-    }
-    return false;
-}
