@@ -101,7 +101,7 @@ if (!empty($cmid)) {
 $desc = get_string('debitdesc', 'availability_wallet', $name);
 $op->debit($costafter, $by, $cmid ?? $sectionid, $desc);
 
-if (!empty($helper->couponutil->coupon) && $costafter < $cost) {
+if (!empty($helper->couponutil->code) && $costafter < $cost) {
     $helper->couponutil->mark_coupon_used();
 }
 

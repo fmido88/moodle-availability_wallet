@@ -192,7 +192,7 @@ class condition extends core_condition {
      *   this item
      */
     public function get_description($full, $not, info $info) {
-        global $USER, $DB, $OUTPUT, $CFG;
+        global $USER, $DB, $OUTPUT, $CFG, $PAGE;
         $context = $info->get_context();
         require_once($CFG->dirroot.'/enrol/wallet/locallib.php');
         $cost = $this->cost;
@@ -232,9 +232,18 @@ class condition extends core_condition {
         if ($this->is_available($not, $info, false, $USER->id)) {
             return get_string('already_paid', 'availability_wallet', $a);
         }
+        $resettheme = false;
+        property_exists($PAGE, 'context');
+        $rc = new \ReflectionProperty($PAGE, '_context');
+        $rc->setAccessible(true);
+        if (!$rc->isInitialized($PAGE)) {
+            $PAGE->set_context($context);
+            $resettheme = true;
+        }
         // Pay button.
         $label = get_string('paybuttonlabel', 'availability_wallet');
         $url = new moodle_url('/availability/condition/wallet/process.php', $params);
+
         $a->paybutton = $OUTPUT->single_button($url, $label, 'post', ['primary' => true]);
 
         // Coupon form.
@@ -251,6 +260,9 @@ class condition extends core_condition {
         }
 
         $a->couponform = $couponform->render();
+        if ($resettheme) {
+            $PAGE->reset_theme_and_output();
+        }
 
         if ($not) {
             return get_string('eithernotdescription', 'availability_wallet', $a);
