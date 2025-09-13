@@ -24,15 +24,17 @@
 
 namespace availability_wallet;
 
-use enrol_wallet\util\balance;
-use enrol_wallet\util\cm;
-use enrol_wallet\util\section;
-use enrol_wallet\coupons;
+use cm_info;
+use enrol_wallet\local\wallet\balance;
+use enrol_wallet\local\entities\cm;
+use enrol_wallet\local\entities\section;
+use enrol_wallet\local\coupons\coupons;
 use core_availability\info;
 use core_availability\info_module;
 use core_availability\info_section;
 use core_availability\condition as core_condition;
 use enrol_wallet\form\applycoupon_form;
+use enrol_wallet\local\urls\actions;
 use moodle_url;
 /**
  * Wallet condition.
@@ -170,6 +172,7 @@ class condition extends core_condition {
             'courseid'     => $courseid,
             'contextid'    => $context->id,
             'contextlevel' => $context->contextlevel,
+            'sesskey'      => sesskey(),
         ];
 
         if ($context->contextlevel === CONTEXT_MODULE) {
@@ -200,12 +203,16 @@ class condition extends core_condition {
             return get_string('invalidcost', 'availability_wallet');
         }
 
-        if ($context->contextlevel === CONTEXT_MODULE) {
+        if ($info instanceof cm_info) {
             $someid = $info->get_course_module()->id;
             $helper = new cm($someid);
-        } else {
+        } else if ($info instanceof section_info) {
             $someid = $info->get_section()->id;
             $helper = new section($someid);
+        } else {
+            $type = gettype($info);
+            debugging("Invalid \$info parameter passed to get_description '$type' passed");
+            return '';
         }
         $bal = new balance(0, $helper->get_category_id());
         $balance = $bal->get_valid_balance();
@@ -247,16 +254,15 @@ class condition extends core_condition {
         $a->paybutton = $OUTPUT->single_button($url, $label, 'post', ['primary' => true]);
 
         // Coupon form.
-        $actionurl = new moodle_url('/enrol/wallet/extra/action.php');
         $data = (object)['instance' => (object)$params];
-        $couponaction = new moodle_url('/enrol/wallet/extra/coupon_action.php');
+        $couponaction = actions::APPLY_COUPON->url();
         $couponform = new applycoupon_form($couponaction, $data);
         if ($couponform->is_cancelled()) {
             coupons::unset_session_coupon();
         }
 
         if ($submitteddata = $couponform->get_data()) {
-            enrol_wallet_process_coupon_data($submitteddata);
+            $couponform->process_coupon_data($submitteddata);
         }
 
         $a->couponform = $couponform->render();

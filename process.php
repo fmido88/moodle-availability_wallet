@@ -22,14 +22,14 @@
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-require_once(__DIR__.'/../../../config.php');
+require_once('../../../config.php');
 // Notice and warnings cases a double payments in case of refreshing the page.
 set_debugging(DEBUG_NONE);
 require_once(__DIR__.'/lib.php');
-global $DB;
-use enrol_wallet\util\cm;
-use enrol_wallet\util\section;
-use enrol_wallet\util\balance_op;
+
+use enrol_wallet\local\entities\cm;
+use enrol_wallet\local\entities\section;
+use enrol_wallet\local\wallet\balance_op;
 
 $cost         = required_param('cost', PARAM_NUMBER);
 $courseid     = required_param('courseid', PARAM_INT);
@@ -41,13 +41,9 @@ $contextlevel = required_param('contextlevel', PARAM_INT);
 $context = get_context_info_array($contextid);
 
 require_login($courseid);
+require_sesskey();
 
 $url = new moodle_url('/course/view.php', ['id' => $courseid]);
-
-// Sesskey must be confirmed before action.
-if (!confirm_sesskey()) {
-    throw new moodle_exception('invalidsesskey');
-};
 
 if (!empty($cmid)) {
     $helper = new cm($cmid);
