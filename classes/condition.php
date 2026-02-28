@@ -24,7 +24,6 @@
 
 namespace availability_wallet;
 
-use cm_info;
 use enrol_wallet\local\wallet\balance;
 use enrol_wallet\local\entities\cm;
 use enrol_wallet\local\entities\section;
@@ -36,6 +35,7 @@ use core_availability\condition as core_condition;
 use enrol_wallet\form\applycoupon_form;
 use enrol_wallet\local\urls\actions;
 use moodle_url;
+
 /**
  * Wallet condition.
  *
@@ -71,7 +71,7 @@ class condition extends core_condition {
      * by JavaScript code.
      *
      * @param float $cost The limit of views for users
-     * @return stdClass Object representing condition
+     * @return \stdClass Object representing condition
      */
     public static function get_json($cost = 0) {
         return (object)['type' => 'wallet', 'cost' => (float)$cost];
@@ -91,20 +91,21 @@ class condition extends core_condition {
      */
     public function is_available($not, info $info, $grabthelot, $userid) {
         global $DB;
-        $context = $info->get_context();
 
         $cost = $this->cost;
         if (empty ($cost) || !is_numeric($cost) || $cost <= 0) {
             return true;
         }
 
-        if ($context->contextlevel === CONTEXT_MODULE) {
-            // Course module.
-            $allow = $this->is_cm_available($userid, $info);
-        } else {
-            // Assuming section.
-            $allow = $this->is_section_available($userid, $info);
-        }
+        $allow = match(true) {
+            $info instanceof info_section => $this->is_section_available($userid, $info),
+            $info instanceof info_module => $this->is_cm_available($userid, $info),
+            default => function() use ($info): bool {
+                    debugging('Unsupported info class ' . $info::class . ' passed to ::is_available()',
+                    DEBUG_DEVELOPER);
+                    return false;
+                },
+        };
 
         if ($not) {
             $allow = !$allow;
@@ -119,7 +120,7 @@ class condition extends core_condition {
      * @param info_module $info
      * @return bool
      */
-    private function is_cm_available($userid, $info) {
+    private function is_cm_available(int $userid, info_module $info) {
         global $DB;
         $cmid = $info->get_course_module()->id;
 
@@ -136,7 +137,7 @@ class condition extends core_condition {
      * @param info_section $info
      * @return bool
      */
-    private function is_section_available($userid, $info) {
+    private function is_section_available(int $userid, info_section $info) {
         global $DB;
         $sectionid = $info->get_section()->id;
         $records = $DB->get_records('availability_wallet', ['userid' => $userid, 'sectionid' => $sectionid]);
@@ -165,7 +166,7 @@ class condition extends core_condition {
      * @param \context $context
      * @return array
      */
-    private function create_parameters($courseid, $someid, $context) {
+    private function create_parameters(int $courseid, int $someid, \context $context): array {
         $params = [
             'id'           => 0,
             'cost'         => $this->cost,
@@ -195,18 +196,17 @@ class condition extends core_condition {
      *   this item
      */
     public function get_description($full, $not, info $info) {
-        global $USER, $DB, $OUTPUT, $CFG, $PAGE;
+        global $USER, $DB, $OUTPUT, $PAGE;
         $context = $info->get_context();
-        require_once($CFG->dirroot.'/enrol/wallet/locallib.php');
         $cost = $this->cost;
         if (empty($cost) || !is_numeric($cost) || $cost <= 0) {
             return get_string('invalidcost', 'availability_wallet');
         }
 
-        if ($info instanceof cm_info) {
+        if ($info instanceof info_module) {
             $someid = $info->get_course_module()->id;
             $helper = new cm($someid);
-        } else if ($info instanceof section_info) {
+        } else if ($info instanceof info_section) {
             $someid = $info->get_section()->id;
             $helper = new section($someid);
         } else {
@@ -239,6 +239,7 @@ class condition extends core_condition {
         if ($this->is_available($not, $info, false, $USER->id)) {
             return get_string('already_paid', 'availability_wallet', $a);
         }
+
         $resettheme = false;
         property_exists($PAGE, 'context');
         $rc = new \ReflectionProperty($PAGE, '_context');
@@ -247,6 +248,7 @@ class condition extends core_condition {
             $PAGE->set_context($context);
             $resettheme = true;
         }
+
         // Pay button.
         $label = get_string('paybuttonlabel', 'availability_wallet');
         $url = new moodle_url('/availability/condition/wallet/process.php', $params);
