@@ -40,7 +40,7 @@ $contextlevel = required_param('contextlevel', PARAM_INT);
 
 $context = get_context_info_array($contextid);
 
-require_login($courseid);
+require_login($courseid, false);
 require_sesskey();
 
 $url = new moodle_url('/course/view.php', ['id' => $courseid]);
@@ -54,11 +54,11 @@ if (!empty($cmid)) {
     redirect($url, $msg, null, 'error');
 }
 
-// This function will validate and check the passed $cost if it is really one of the costs...
-// ... in the conditions of the cm or section.
+// This function will validate and check the passed $cost if it is really one of the costs
+// in the conditions of the cm or section.
 $costafter = $helper->get_cost_after_discount($cost);
 
-if (is_null($costafter)) {
+if ($costafter === null) {
     $msg = get_string('paymentnotenought', 'availability_wallet');
     redirect($url, $msg, null, 'error');
 }
@@ -73,22 +73,24 @@ $data = [
 ];
 $DB->insert_record('availability_wallet', $data);
 
-$coursename = $helper->get_course()->fullname;
+$context = $helper->get_context();
+$coursename = format_string(
+    $helper->get_course()->fullname,
+    true,
+    ['context' => $context]
+);
 if (!empty($cmid)) {
     $module = $helper->cm;
     $name = $coursename;
+    $name = $helper->get_name();
     $name .= ': ';
     $name .= get_string('module', 'availability_wallet');
-    $name .= '(' . $module->name . ')';
+    $name .= '(' . $helper->get_name() . ')';
 
     $op = balance_op::create_from_cm($cm);
     $by = balance_op::D_CM_ACCESS;
 } else if (!empty($sectionid)) {
-    $section = $helper->section;
-    $name = $coursename;
-    $name .= ': ';
-    $name .= get_string('section');
-    $name .= (!empty($section->name)) ? "($section->name)" : "($section->section)";
+    $name = $helper->get_name();
 
     $op = balance_op::create_from_section($section);
     $by = balance_op::D_SECTION_ACCESS;
